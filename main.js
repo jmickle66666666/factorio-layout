@@ -437,9 +437,7 @@ function main () {
     }
     test_recipe_system();
 
-
-
+// default recipe energy-required appears to be 0.5
+console.log(data.recipe["steel-plate"].normal);
 }
-
-
 window.onload=main;
