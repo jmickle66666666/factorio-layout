@@ -3,7 +3,7 @@ function main () {
     ////////////// SETUP AND DRWAING STUFF
 
     var BOUND_WIDTH = 10;
-    var BOUND_HEIGHT = 9;
+    var BOUND_HEIGHT = 16;
 
     var TILESIZE = 30;
     var can = document.getElementById('can');
@@ -14,7 +14,7 @@ function main () {
     can.height=800;
     ctx.fillStyle = "white";
     ctx.fillRect(0,0,can.width,can.height);
-    function drawBox(x,y,w,h,text, color) {
+    function drawBox(x,y,w,h,text, text2, color) {
 
         ctx.fillStyle = color;
         ctx.fillRect(x*TILESIZE,y*TILESIZE,w * TILESIZE,h * TILESIZE);
@@ -27,7 +27,8 @@ function main () {
         ctx.strokeStyle = "black";
         ctx.strokeRect(x*TILESIZE,y*TILESIZE,w * TILESIZE,h * TILESIZE);
         ctx.fillStyle = "black";
-        ctx.fillText(text,x*TILESIZE+2,(y*TILESIZE)+TILESIZE/2,w*TILESIZE);
+        ctx.fillText(text,x*TILESIZE+2,((y*TILESIZE)+TILESIZE/2)-4,w*TILESIZE);
+        ctx.fillText(text2,x*TILESIZE+2,((y*TILESIZE)+TILESIZE/2)+8,w*TILESIZE);
     }
     //drawBox(2,2,3,3,"factory");
     document.body.appendChild(can);
@@ -109,14 +110,19 @@ function main () {
     }
 
     function drawEntity(entity, position) {
-        var size = entitySize(entity);
+        var size = entitySize(entity.entity);
         if (size == null) {
-            console.log("Can't get size of "+entity+", fallback to 1x1");
+            console.log("Can't get size of "+entity.entity+", fallback to 1x1");
             size = {width:1, height:1};
         }
 
-        var drawColor = stringToHex(entity);
-        drawBox(position.x, position.y, size.width, size.height, entity, drawColor);
+        var infoText = "";
+
+        if (entity.recipe != null) infoText = entity.recipe;
+        if (entity.direction != null) infoText = entity.direction;
+
+        var drawColor = stringToHex(entity.entity);
+        drawBox(position.x, position.y, size.width, size.height, entity.entity, infoText, drawColor);
     }
 
     function stringToHex(string) {
@@ -431,72 +437,16 @@ function main () {
 
     function test_recipe_system() {
 
-        // var entities = {
-        //     "assembling-machine-1" : {
-        //         name : "assembling-machine-1",
-        //         width : 3,
-        //         height : 3
-        //     },
-        //     "stone-furnace" : {
-        //         name : "stone-furnace",
-        //         width : 2,
-        //         height : 2
-        //     },
-        //     "transport-belt" : {
-        //         name : "transport-belt",
-        //         width : 1,
-        //         height : 1
-        //     }
-        // }
+        var r = document.getElementById("selectedItem").value;
 
-        // var items = {
-        //     "iron-ore" : {
-        //         name : "iron-ore",
-        //         source : "transport-belt"
-        //     },
-        //     "iron-plate" : {
-        //         name : "iron-plate",
-        //         source : "stone-furnace"
-        //     },
-        //     "copper-ore" : {
-        //         name : "copper-ore",
-        //         source : "transport-belt"
-        //     },
-        //     "copper-plate" : {
-        //         name : "copper-plate",
-        //         source : "stone-furnace"
-        //     },
-        //     "coal" : {
-        //         name : "coal",
-        //         source : "transport-belt"
-        //     },
-        //     "copper-cable" : {
-        //         name : "copper-cable",
-        //         source : "assembling-machine-1"
-        //     },
-        //     "electronic-circuit" : {
-        //         name : "electronic-circuit",
-        //         source : "assembling-machine-1"
-        //     }
-        // }
-
-        // var recipes = {
-        //     "iron-plate" : [ "iron-ore" ],
-        //     "copper-plate" : [ "copper-ore" ],
-        //     "copper-cable" : [ "copper-plate" ],
-        //     "electronic-circuit" : [ "copper-cable", "copper-cable", "iron-plate" ]
-        // }
-
-        var r = document.getElementById("output").value;
-
-        var setup = generate_build_from_recipe(r, ["iron-ore", "copper-ore"]);
+        var setup = generate_build_from_recipe(r, ["iron-ore", "copper-ore", "coal", "stone"]);
         setup.x = 10;
         setup.y = 10;
         place(setup);
         //drawEntity(setup);
         var output = get_entity_connections(setup);
         for (var i = 0; i < output.length; i++) {
-            drawEntity(output[i].entity, {x:output[i].x, y:output[i].y});
+            drawEntity(output[i], {x:output[i].x, y:output[i].y});
         }
 
 

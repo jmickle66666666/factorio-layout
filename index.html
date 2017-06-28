@@ -3,6 +3,20 @@
 <script src="ratio.js"></script>
 <script src="main.js"></script>
 <div id="controlpanel">
-    <input id="output" />
+    <select id="selectedItem">
+    </select>
     <button onClick="main();">do it</button>
 </div>
+<script>
+    var itemList = listProducts();
+    var selectElement = document.getElementById("selectedItem");
+
+    for (var i in itemList) {
+        i = itemList[i];
+
+        var el = document.createElement("option");
+        el.textContent = i;
+        el.value = i;
+        selectElement.appendChild(el);
+    }
+</script>
