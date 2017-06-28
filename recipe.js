@@ -1,12 +1,14 @@
+
+// Get a list of recipes available for the given item
 function getRecipe(result) {
     if (data.recipe[result] != null && data.recipe[result].normal != null) {
         if (data.recipe[result].normal.result == result) {
-            return data.recipe[result].normal; // found a direct recipe
+            return [data.recipe[result].normal]; // found a direct recipe
         } else {
             if (data.recipe[result].normal.results != null) {
                 for (var i = 0; i < data.recipe[result].normal.results.length; i++) {
                     if (data.recipe[result].normal.results[0].name == result) {
-                        return data.recipe[result].normal;
+                        return [data.recipe[result].normal];
                     }
                 }
             }
@@ -18,11 +20,12 @@ function getRecipe(result) {
         for (var recipe in data.recipe) {
             if (data.recipe.hasOwnProperty(recipe)) {
                 recipe = data.recipe[recipe];
-                
                 if (recipe.normal != null) recipe = recipe.normal;
 
                 if (recipe.result != null) {
-                    if (recipe.result == recipe) output.push(recipe);
+                    if (recipe.result == result) {
+                        output.push(recipe);
+                    }
                 } else if (recipe.results != null) {
                     for (var r in recipe.results) {
                         r = recipe.results[r];
@@ -31,21 +34,20 @@ function getRecipe(result) {
                             break;
                         }
                     }
-            }
+                }
             }
 
         }
-        if (output.length == 0) return null;
-        if (output.length == 1) return output[0];
         return output;
     }   
 }
 
+// Fill out optional data in a recipe object with the game's defaults
 function fillOptionalRecipeData(recipe) {
     if (recipe.result != null && recipe.result_count == null) {
         recipe.result_count = 1;
     }
-
+    //console.log(recipe);
     if (recipe.category == null) {
         recipe.category = "crafting";
     }
@@ -62,8 +64,6 @@ function fillOptionalRecipeData(recipe) {
 function whatIsItMadeIn(item) {
     var output = [];
     var recipe = getRecipe(item);
-
-    if (recipe.length == 1) recipe = [recipe,];
 
     for (var i = 0; i < recipe.length; i++) {
         fillOptionalRecipeData(recipe[i]);
@@ -91,6 +91,49 @@ function whatIsItMadeIn(item) {
         }
     }
 
+    return output.filter(function(item, pos) {
+        return output.indexOf(item) == pos;
+    });
+}
+
+// Get the size in tiles of an entity
+function entitySize(entity) {
+    var box = null;
+
+    for (var category in data) {
+        for (var ent in data[category]) {
+            if (ent == entity) {
+                box = data[category][ent].collision_box;
+                break;
+            }
+        }
+        if (box != null) break;
+    }
+
+    if (box == null) return;
+
+    var width = Math.ceil(box[1][0] - box[0][0]);
+    var height = Math.ceil(box[1][1] - box[0][1]);
+
+    return {width: width, height: height};
+}
+
+// Return a list of all possible recipe result items
+function listProducts() {
+    var output = [];
+    for (var recipe in data.recipe) {
+        recipe = data.recipe[recipe];
+        if (recipe.normal != null) recipe = recipe.normal;
+
+        if (recipe.result != null) output.push(recipe.result);
+
+        if (recipe.results != null) {
+            for (var result in recipe.results) {
+                result = recipe.results[result];
+                output.push(result.name);
+            }
+        }
+    }
     return output.filter(function(item, pos) {
         return output.indexOf(item) == pos;
     });

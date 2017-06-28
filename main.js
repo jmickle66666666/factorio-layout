@@ -36,7 +36,7 @@ function main () {
         return array[Math.floor(Math.random() * array.length)];
     }
 
-    document.addEventListener("keydown", main);
+    //document.addEventListener("keydown", main);
 
     current_entities = [];
 
@@ -57,7 +57,11 @@ function main () {
     }
 
     function can_place_entity(entity) {
-
+        if (entity.width == null) {
+            var size = entitySize(entity.entity);
+            entity.width = size.width;
+            entity.height = size.height;
+        }
         var bounds = getCurrentBounds();
         if (!inBounds(entity, bounds)) {
             var newWidth = Math.max(bounds.x2, entity.x+entity.width) - Math.min(bounds.x1, entity.x);
@@ -104,15 +108,26 @@ function main () {
         return false;
     }
 
-    function drawEntity(entity) {
-        var drawColor = "white";
-        if (entity.name == "assembler") drawColor = "#AAE";
-        if (entity.name == "inserter") drawColor = "#EEA";
-        if (entity.name == "inserter" && entity.type == "long") drawColor = "#EAA";
-        if (entity.name == "furnace") drawColor = "#AAA";
-        var text = entity.name;
-        if (entity.recipe != null) text = entity.recipe;
-        drawBox(entity.x, entity.y, entity.width, entity.height, text, drawColor);
+    function drawEntity(entity, position) {
+        var size = entitySize(entity);
+        if (size == null) {
+            console.log("Can't get size of "+entity+", fallback to 1x1");
+            size = {width:1, height:1};
+        }
+
+        var drawColor = stringToHex(entity);
+        drawBox(position.x, position.y, size.width, size.height, entity, drawColor);
+    }
+
+    function stringToHex(string) {
+        // Junk to convert a string into a hex value for deterministic color stuff
+        var value = 1;
+        for (var i = 0; i < string.length; i++) {
+            value += string.charCodeAt(i);
+        }
+        value %= 0x1000;
+        var output = value.toString(16).toUpperCase();
+        return "#"+output;
     }
 
     function pointInRect(point, rect) {
@@ -124,22 +139,26 @@ function main () {
 
     ///////////// ACTUAL THINGS
 
-    function generate_build_from_recipe(recipe, recipes, items, entities) {
-
-        if (items[recipe] == null) console.log("Can't find item: "+recipe);
-
-        var main_source = items[recipe].source;
-        var output = Object.assign({}, entities[main_source]);
+    function generate_build_from_recipe(recipe, belted_inputs) {
+        
+        var output = {};
         output.recipe = recipe;
 
+        for (var b in belted_inputs) {
+            b = belted_inputs[b];
+            if (recipe == b) {
+                output.inputs = [];
+                output.entity = "transport-belt";
+                return output;
+            }
+        }
+
+        var main_source = whatIsItMadeIn(recipe)[0];
+        output.entity = main_source;
         output.inputs = [];
-
-        if (recipes[recipe] == null) return output;
-
-        var ingredients = recipes[recipe];
-
+        var ingredients = getRecipe(recipe)[0].ingredients;
         for (var i = 0; i < ingredients.length; i++) {
-            output.inputs.push(generate_build_from_recipe(ingredients[i],recipes,items,entities));
+            output.inputs.push(generate_build_from_recipe(ingredients[i][0], belted_inputs));
         }
 
         return output;
@@ -148,7 +167,7 @@ function main () {
     function get_entity_connections(entity) {
         var output = [];
         output.push(entity);
-        
+        if (entity.inputs == null) entity.inputs = [];
         if (entity.inputs.length == 0) {
             return output;
         }
@@ -187,7 +206,10 @@ function main () {
             
         }
 
-        if (output.length == 1) return null;
+        if (output.length == 1) {
+            console.log("here");
+            return null;
+        }
         return output;
 
         
@@ -195,34 +217,35 @@ function main () {
 
     function entity_inserter_variations(entity) {
         // Create a list of every possible input inserter position for the entity
-
         var output = []
         var i = 0;
 
+        var size = entitySize(entity.entity);
+
         // normal inserters
         
-        for (i = 0; i < entity.width; i++) {
-            output.push({x:entity.x + i,y:entity.y - 1,direction:"south",type:"normal",width:1,height:1,name:"inserter"});
-            output.push({x:entity.x + i,y:entity.y + entity.height,direction:"north",type:"normal",width:1,height:1,name:"inserter"});
+        for (i = 0; i < size.width; i++) {
+            output.push({x:entity.x + i,y:entity.y - 1,direction:"south",type:"normal",width:1,height:1,entity:"inserter"});
+            output.push({x:entity.x + i,y:entity.y + size.height,direction:"north",type:"normal",width:1,height:1,entity:"inserter"});
         }
         for (i = 0; i < entity.height; i++) {
-            output.push({x:entity.x - 1,y:entity.y + i,direction:"east",type:"normal",width:1,height:1,name:"inserter"});
-            output.push({x:entity.x + entity.width,y:entity.y + i,direction:"west",type:"normal",width:1,height:1,name:"inserter"});
+            output.push({x:entity.x - 1,y:entity.y + i,direction:"east",type:"normal",width:1,height:1,entity:"inserter"});
+            output.push({x:entity.x + size.width,y:entity.y + i,direction:"west",type:"normal",width:1,height:1,entity:"inserter"});
         }
         
         // long inserters
         
-        for (i = 0; i < entity.width; i++) {
-            output.push({x:entity.x + i,y:entity.y - 1,direction:"south",type:"long",width:1,height:1,name:"inserter"});
-            output.push({x:entity.x + i,y:entity.y - 2,direction:"south",type:"long",width:1,height:1,name:"inserter"});
-            output.push({x:entity.x + i,y:entity.y + entity.height,direction:"north",type:"long",width:1,height:1,name:"inserter"});
-            output.push({x:entity.x + i,y:entity.y + entity.height + 1,direction:"north",type:"long",width:1,height:1,name:"inserter"});
+        for (i = 0; i < size.width; i++) {
+            output.push({x:entity.x + i,y:entity.y - 1,direction:"south",type:"long",width:1,height:1,entity:"inserter"});
+            output.push({x:entity.x + i,y:entity.y - 2,direction:"south",type:"long",width:1,height:1,entity:"inserter"});
+            output.push({x:entity.x + i,y:entity.y + size.height,direction:"north",type:"long",width:1,height:1,entity:"inserter"});
+            output.push({x:entity.x + i,y:entity.y + size.height + 1,direction:"north",type:"long",width:1,height:1,entity:"inserter"});
         }
-        for (i = 0; i < entity.height; i++) {
-            output.push({x:entity.x - 1,y:entity.y + i,direction:"east",type:"long",width:1,height:1,name:"inserter"});
-            output.push({x:entity.x - 2,y:entity.y + i,direction:"east",type:"long",width:1,height:1,name:"inserter"});
-            output.push({x:entity.x + entity.width,y:entity.y + i,direction:"west",type:"long",width:1,height:1,name:"inserter"});
-            output.push({x:entity.x + entity.width + 1,y:entity.y + i,direction:"west",type:"long",width:1,height:1,name:"inserter"});
+        for (i = 0; i < size.height; i++) {
+            output.push({x:entity.x - 1,y:entity.y + i,direction:"east",type:"long",width:1,height:1,entity:"inserter"});
+            output.push({x:entity.x - 2,y:entity.y + i,direction:"east",type:"long",width:1,height:1,entity:"inserter"});
+            output.push({x:entity.x + size.width,y:entity.y + i,direction:"west",type:"long",width:1,height:1,entity:"inserter"});
+            output.push({x:entity.x + size.width + 1,y:entity.y + i,direction:"west",type:"long",width:1,height:1,entity:"inserter"});
         }
 
         return output;
@@ -230,6 +253,8 @@ function main () {
 
     function inserter_entity_input_positions(inserter, entity) {
         // Create a list of every position `entity` can be placed as an input for `inserter`
+
+        entity = entitySize(entity.entity);
 
         var i, j;
         var output = [];
@@ -406,76 +431,72 @@ function main () {
 
     function test_recipe_system() {
 
-        var entities = {
-            assembler : {
-                name : "assembler",
-                width : 3,
-                height : 3
-            },
-            furnace : {
-                name : "furnace",
-                width : 2,
-                height : 2
-            },
-            belt : {
-                name : "belt",
-                width : 1,
-                height : 1
-            }
-        }
+        // var entities = {
+        //     "assembling-machine-1" : {
+        //         name : "assembling-machine-1",
+        //         width : 3,
+        //         height : 3
+        //     },
+        //     "stone-furnace" : {
+        //         name : "stone-furnace",
+        //         width : 2,
+        //         height : 2
+        //     },
+        //     "transport-belt" : {
+        //         name : "transport-belt",
+        //         width : 1,
+        //         height : 1
+        //     }
+        // }
 
-        var items = {
-            iron_ore : {
-                name : "iron-ore",
-                source : "belt"
-            },
-            iron_plate : {
-                name : "iron-plate",
-                source : "furnace"
-            },
-            copper_ore : {
-                name : "copper-ore",
-                source : "belt"
-            },
-            copper_plate : {
-                name : "copper-plate",
-                source : "furnace"
-            },
-            coal : {
-                name : "coal",
-                source : "belt"
-            },
-            copper_cable : {
-                name : "copper-cable",
-                source : "assembler"
-            },
-            green_circuit : {
-                name : "electronic-circuit",
-                source : "assembler"
-            },
-            green_output : {
-                name : "output",
-                source : "belt"
-            }
-        }
+        // var items = {
+        //     "iron-ore" : {
+        //         name : "iron-ore",
+        //         source : "transport-belt"
+        //     },
+        //     "iron-plate" : {
+        //         name : "iron-plate",
+        //         source : "stone-furnace"
+        //     },
+        //     "copper-ore" : {
+        //         name : "copper-ore",
+        //         source : "transport-belt"
+        //     },
+        //     "copper-plate" : {
+        //         name : "copper-plate",
+        //         source : "stone-furnace"
+        //     },
+        //     "coal" : {
+        //         name : "coal",
+        //         source : "transport-belt"
+        //     },
+        //     "copper-cable" : {
+        //         name : "copper-cable",
+        //         source : "assembling-machine-1"
+        //     },
+        //     "electronic-circuit" : {
+        //         name : "electronic-circuit",
+        //         source : "assembling-machine-1"
+        //     }
+        // }
 
-        var recipes = {
-            iron_plate : [ "iron_ore" ],
-            copper_plate : [ "copper_ore" ],
-            copper_cable : [ "copper_plate", "copper_plate" ],
-            green_circuit : [ "copper_cable", "copper_cable", "iron_plate" ],
-            green_output : [ "green_circuit" ]
-        }
+        // var recipes = {
+        //     "iron-plate" : [ "iron-ore" ],
+        //     "copper-plate" : [ "copper-ore" ],
+        //     "copper-cable" : [ "copper-plate" ],
+        //     "electronic-circuit" : [ "copper-cable", "copper-cable", "iron-plate" ]
+        // }
 
-        var setup = generate_build_from_recipe("green_output", recipes, items, entities);
+        var r = document.getElementById("output").value;
+
+        var setup = generate_build_from_recipe(r, ["iron-ore", "copper-ore"]);
         setup.x = 10;
         setup.y = 10;
         place(setup);
         //drawEntity(setup);
-        
         var output = get_entity_connections(setup);
         for (var i = 0; i < output.length; i++) {
-            drawEntity(output[i]);
+            drawEntity(output[i].entity, {x:output[i].x, y:output[i].y});
         }
 
 
@@ -485,4 +506,4 @@ function main () {
 
 // default recipe energy-required appears to be 0.5
 }
-window.onload=main;
+//window.onload=main;
