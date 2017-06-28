@@ -2,13 +2,16 @@ function main () {
 
     ////////////// SETUP AND DRWAING STUFF
 
+    var BOUND_WIDTH = 10;
+    var BOUND_HEIGHT = 9;
+
     var TILESIZE = 30;
     var can = document.getElementById('can');
     if (can == null) can = document.createElement('canvas');
     can.id = 'can';
     var ctx = can.getContext('2d');
     can.width=600;
-    can.height=600;
+    can.height=800;
     ctx.fillStyle = "white";
     ctx.fillRect(0,0,can.width,can.height);
     function drawBox(x,y,w,h,text, color) {
@@ -54,6 +57,15 @@ function main () {
     }
 
     function can_place_entity(entity) {
+
+        var bounds = getCurrentBounds();
+        if (!inBounds(entity, bounds)) {
+            var newWidth = Math.max(bounds.x2, entity.x+entity.width) - Math.min(bounds.x1, entity.x);
+            if (newWidth > BOUND_WIDTH) return false;
+            var newHeight = Math.max(bounds.y2, entity.y+entity.height) - Math.min(bounds.y1, entity.y);
+            if (newHeight > BOUND_HEIGHT) return false;   
+        }
+
         for (var i = 0; i < current_entities.length; i++) {
             var ent2 = current_entities[i];
             if (entity.x + entity.width > ent2.x && 
@@ -66,10 +78,37 @@ function main () {
         return true;
     }
 
+    function getCurrentBounds() {
+        var minX = 100;
+        var minY = 100;
+        var maxX = -100;
+        var maxY = -100;
+
+        for (var i = 0; i < current_entities.length; i++) {
+            if (current_entities[i].x < minX) minX = current_entities[i].x; 
+            if (current_entities[i].y < minY) minY = current_entities[i].y;
+            if (current_entities[i].x + current_entities[i].width > maxX) maxX = current_entities[i].x + current_entities[i].width;
+            if (current_entities[i].y + current_entities[i].height > maxY) maxY = current_entities[i].y + current_entities[i].height;
+        }
+
+        return { x1 : minX, x2 : maxX, y1 : minY, y2 : maxY, width : maxX - minX, height : maxY - minY };
+    }
+
+    function inBounds(entity, bounds) {
+        if (entity.x > bounds.x1 && 
+            entity.x + entity.width < bounds.x2 &&
+            entity.y > bounds.y1 &&
+            entity.y + entity.height < bounds.y2) {
+            return true;
+        }
+        return false;
+    }
+
     function drawEntity(entity) {
         var drawColor = "white";
         if (entity.name == "assembler") drawColor = "#AAE";
         if (entity.name == "inserter") drawColor = "#EEA";
+        if (entity.name == "inserter" && entity.type == "long") drawColor = "#EAA";
         if (entity.name == "furnace") drawColor = "#AAA";
         var text = entity.name;
         if (entity.recipe != null) text = entity.recipe;
@@ -102,8 +141,6 @@ function main () {
         for (var i = 0; i < ingredients.length; i++) {
             output.inputs.push(generate_build_from_recipe(ingredients[i],recipes,items,entities));
         }
-
-        console.log(output);
 
         return output;
     }
@@ -166,11 +203,11 @@ function main () {
         
         for (i = 0; i < entity.width; i++) {
             output.push({x:entity.x + i,y:entity.y - 1,direction:"south",type:"normal",width:1,height:1,name:"inserter"});
-            output.push({x:entity.x + i,y:entity.y + 3,direction:"north",type:"normal",width:1,height:1,name:"inserter"});
+            output.push({x:entity.x + i,y:entity.y + entity.height,direction:"north",type:"normal",width:1,height:1,name:"inserter"});
         }
         for (i = 0; i < entity.height; i++) {
             output.push({x:entity.x - 1,y:entity.y + i,direction:"east",type:"normal",width:1,height:1,name:"inserter"});
-            output.push({x:entity.x + 3,y:entity.y + i,direction:"west",type:"normal",width:1,height:1,name:"inserter"});
+            output.push({x:entity.x + entity.width,y:entity.y + i,direction:"west",type:"normal",width:1,height:1,name:"inserter"});
         }
         
         // long inserters
@@ -178,14 +215,14 @@ function main () {
         for (i = 0; i < entity.width; i++) {
             output.push({x:entity.x + i,y:entity.y - 1,direction:"south",type:"long",width:1,height:1,name:"inserter"});
             output.push({x:entity.x + i,y:entity.y - 2,direction:"south",type:"long",width:1,height:1,name:"inserter"});
-            output.push({x:entity.x + i,y:entity.y + 3,direction:"north",type:"long",width:1,height:1,name:"inserter"});
-            output.push({x:entity.x + i,y:entity.y + 4,direction:"north",type:"long",width:1,height:1,name:"inserter"});
+            output.push({x:entity.x + i,y:entity.y + entity.height,direction:"north",type:"long",width:1,height:1,name:"inserter"});
+            output.push({x:entity.x + i,y:entity.y + entity.height + 1,direction:"north",type:"long",width:1,height:1,name:"inserter"});
         }
         for (i = 0; i < entity.height; i++) {
             output.push({x:entity.x - 1,y:entity.y + i,direction:"east",type:"long",width:1,height:1,name:"inserter"});
             output.push({x:entity.x - 2,y:entity.y + i,direction:"east",type:"long",width:1,height:1,name:"inserter"});
-            output.push({x:entity.x + 3,y:entity.y + i,direction:"west",type:"long",width:1,height:1,name:"inserter"});
-            output.push({x:entity.x + 4,y:entity.y + i,direction:"west",type:"long",width:1,height:1,name:"inserter"});
+            output.push({x:entity.x + entity.width,y:entity.y + i,direction:"west",type:"long",width:1,height:1,name:"inserter"});
+            output.push({x:entity.x + entity.width + 1,y:entity.y + i,direction:"west",type:"long",width:1,height:1,name:"inserter"});
         }
 
         return output;
@@ -202,6 +239,11 @@ function main () {
         if (inserter.direction == "south" && inserter.type == "normal") { pickup = { x: inserter.x, y: inserter.y - 1 }};
         if (inserter.direction == "east" && inserter.type == "normal") { pickup = { x: inserter.x - 1, y: inserter.y }};
         if (inserter.direction == "west" && inserter.type == "normal") { pickup = { x: inserter.x + 1, y: inserter.y }};
+
+        if (inserter.direction == "north" && inserter.type == "long") { pickup = { x: inserter.x, y: inserter.y + 2 }};
+        if (inserter.direction == "south" && inserter.type == "long") { pickup = { x: inserter.x, y: inserter.y - 2 }};
+        if (inserter.direction == "east" && inserter.type == "long") { pickup = { x: inserter.x - 2, y: inserter.y }};
+        if (inserter.direction == "west" && inserter.type == "long") { pickup = { x: inserter.x + 2, y: inserter.y }};
 
         for (i = pickup.x - entity.width; i <= pickup.x + entity.width; i++) {
             for (j = pickup.y - entity.height; j <= pickup.y + entity.height; j++) {
@@ -222,7 +264,6 @@ function main () {
         inserters = entity_inserter_variations(assembler);
 
         drawBox(assembler.x,assembler.y,3,3,"factory");
-        console.log(inserters.length);
         for (var i = 0; i < inserters.length; i++) {
             drawBox(inserters[i].x,inserters[i].y,1,1,inserters[i].direction);
         }
@@ -411,6 +452,10 @@ function main () {
             green_circuit : {
                 name : "electronic-circuit",
                 source : "assembler"
+            },
+            green_output : {
+                name : "output",
+                source : "belt"
             }
         }
 
@@ -418,10 +463,11 @@ function main () {
             iron_plate : [ "iron_ore" ],
             copper_plate : [ "copper_ore" ],
             copper_cable : [ "copper_plate", "copper_plate" ],
-            green_circuit : [ "copper_cable", "copper_cable", "iron_plate" ]
+            green_circuit : [ "copper_cable", "copper_cable", "iron_plate" ],
+            green_output : [ "green_circuit" ]
         }
 
-        var setup = generate_build_from_recipe("green_circuit", recipes, items, entities);
+        var setup = generate_build_from_recipe("green_output", recipes, items, entities);
         setup.x = 10;
         setup.y = 10;
         place(setup);
@@ -438,6 +484,5 @@ function main () {
     test_recipe_system();
 
 // default recipe energy-required appears to be 0.5
-console.log(data.recipe["oil"].normal);
 }
 window.onload=main;
